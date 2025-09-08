@@ -1,0 +1,15 @@
+# -------------------------------------------------------------------------------------------------------
+# Clean Up Repo folder
+# -------------------------------------------------------------------------------------------------------
+# Remove the Repo folder to ensure nothing is left after we are done.
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - script: |
+      echo "Remove Folders and Files"
+      rm -r data-platform-ai
+      rm -r archive
+      rm -r .git
+      echo "List remaining Directories ./"
+      ls -altr
+    displayName: "Cleanup Directories"
+    condition: always()    

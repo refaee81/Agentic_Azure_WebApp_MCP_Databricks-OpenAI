@@ -1,0 +1,44 @@
+# -------------------------------------------------------------------------------------------------------
+# Terraform Plan [BUILD]
+# -------------------------------------------------------------------------------------------------------
+# Run Terraform Plan on the TF_CONFIG_DIRECTORY directory.
+#
+# -------------------------------------------------------------------------------------------------------
+parameters:
+  - name: runDrift
+    type: boolean
+    
+steps:
+# - ${{ if ne(parameters.runDrift, true) }}: # parameter 'runDrift' is not 'True'
+  - task: Bash@3
+  
+    # -------------------------------------------------------------------------------------------------------
+    # The environment name (env_name) is one of these: dev, qac, ppr, or prd.
+    # The runDrift parameter is not set to true and
+    # The build was triggered by a Schedule (Build.Reason equals 'Manual') or 
+    #  by a PullRequest (Build.Reason equals 'PullRequest')
+    # -------------------------------------------------------------------------------------------------------
+
+    condition: and(
+       in(variables['env_name'], 'prod','mdlg', 'stg', 'dev'),
+       not(eq('${{ parameters.runDrift }}', 'True')),
+       or(
+         eq(variables['Build.Reason'], 'Manual'),
+         eq(variables['Build.Reason'], 'PullRequest')
+       )
+     )
+
+    inputs:
+      filePath: "$(script_path)/$(terraform_version)_terraform-plan.sh"
+      arguments: "$(Build.SourcesDirectory) $(env_path) $(tf_concise_plan) $(env_name)"
+      failOnStderr: true
+    env:
+      ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+      ARM_OIDC_TOKEN: $(AZURE_OIDC_TOKEN)
+      ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      ARM_TENANT_ID: $(AZURE_TENANT_ID) 
+      ARM_USE_OIDC: $(AZURE_USE_OIDC)
+      # ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+    displayName: "Terraform Plan"
+
+

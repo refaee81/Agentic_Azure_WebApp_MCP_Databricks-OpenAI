@@ -1,0 +1,16 @@
+# -------------------------------------------------------------------------------------------------------
+# Azure Login Step
+# -------------------------------------------------------------------------------------------------------
+# Login into Azure using the Service Connection defined in the YAML task.
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: 'sc-dap-ai-terraform-$(env_name)'  # This is the name of the Service Connection (Azure Resource Manager using service principal)
+      scriptType: 'bash'
+      scriptLocation: 'scriptPath'
+      scriptPath: '$(script_path)/$(terraform_version)_environment-setup.sh'
+      arguments: "$(env_name)"
+      addSpnToEnvironment: true
+      failOnStandardError: true
+    displayName: 'Azure Login'

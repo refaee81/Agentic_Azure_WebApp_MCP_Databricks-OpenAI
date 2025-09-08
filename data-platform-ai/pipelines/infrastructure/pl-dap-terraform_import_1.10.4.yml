@@ -1,0 +1,42 @@
+
+name: 0.1.$(Rev:r)
+
+variables:
+  #----------------------------------------------------------------------------------------------------------
+  # these variables are inline configured in the Pipeline in ADO:
+  #  - env_name
+  #  - env_sub
+  #  - env_sub_short
+  #  - terraform_download_sha
+  #  - terraform_version
+  #  - agent_pool
+  #  - tf_concise_plan
+  #----------------------------------------------------------------------------------------------------------
+  - name: tf_in_automation # Controlling Terraform output in automation
+    value: true
+  - name: env_path
+    value: ./data-platform-ai/subscription/$(env_sub)/$(env_name)
+  - name: script_path
+    value: ./data-platform-ai/pipelines/scripts
+  - name: agent_name
+    value: "$(Agent.Name)"
+
+trigger: none
+
+stages:
+  - stage: TFImport
+    jobs:
+      - job: InitandImport
+        workspace:
+          clean: resources # Delete Build.SourcesDirectory before running a new job => https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
+        pool:
+          name: $(agent_pool)
+
+        steps:
+          - template: "../templates/terraform-list-runtime-variables.yml" # Output the variable for this execution
+          - template: "../templates/terraform-download.yml" # Download terraform executable based on [terraform_version] variable
+          - template: "../templates/terraform-azure-login.yml" # Login into Azure using the Service Connection defined in the YAML task
+          - template: "../templates/terraform-init.yml" # Run a Terraform Init on the TF_CONFIG_DIRECTORY directory
+          - template: "../templates/terraform-backend-setup-imports.yml" # Run a Terraform Import on the 3 new resources
+          - template: "../templates/terraform-cleanup-folders.yml" # Clean-Up the folders from the stage
+

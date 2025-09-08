@@ -1,0 +1,10 @@
+# -------------------------------------------------------------------------------------------------------
+# Setting Permissions on artifacts
+# -------------------------------------------------------------------------------------------------------
+# Setting required permissions to artifacts as they are lost between stages
+# See Tips at => https://docs.microsoft.com/en-us/azure/devops/pipelines/artifacts/build-artifacts?view=azure-devops&tabs=yaml
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - script: |
+      chmod +x $(env_path)/terraform
+    displayName: "Set File Permissions"

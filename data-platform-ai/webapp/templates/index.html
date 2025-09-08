@@ -1,0 +1,197 @@
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>Databricks EHH Chat</title>  
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">  
+    <style>  
+        html, body {  
+            height: 100%;  
+            margin: 0;  
+        }  
+        body {  
+            background-image: url("{{ url_for('static', filename='Background.png') }}");  
+            background-size: cover;  
+            background-position: center;  
+            background-repeat: no-repeat;  
+            color: #fff;  
+            text-align: center;  
+        }  
+        .logo {  
+            width: 200px;  
+            margin-top: 20px;  
+            margin-bottom: 20px;  
+            border-radius: 15px;  
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);  
+            display: block;  
+            margin-left: auto;  
+            margin-right: auto;  
+        }  
+        .chat-container {  
+            background-color: rgba(0,0,0,0.6);  
+            border-radius: 12px;  
+            max-width: 500px;  
+            margin: 40px auto;  
+            padding: 30px 20px 20px 20px;  
+            box-shadow: 0 6px 24px rgba(0,0,0,0.4);  
+        }  
+        .chat-box {  
+            background: #fff;  
+            border-radius: 8px;  
+            height: 350px;  
+            overflow-y: auto;  
+            padding: 15px;  
+            margin-bottom: 20px;  
+            text-align: left;  
+            color: #222;  
+        }  
+        .message {  
+            margin-bottom: 14px;  
+        }  
+        .message.user .bubble {  
+            background: #007bff;  
+            color: #fff;  
+            text-align: right;  
+            margin-left: 80px;  
+        }  
+        .message.bot .bubble {  
+            background: #f1f0f0;  
+            color: #222;  
+            text-align: left;  
+            margin-right: 80px;  
+        }  
+        .bubble {  
+            display: inline-block;  
+            padding: 10px 16px;  
+            border-radius: 18px;  
+            max-width: 80%;  
+            word-break: break-word;  
+        }  
+        .feedback-buttons {  
+            margin-top: 5px;  
+            text-align: left;  
+        }  
+        .feedback-buttons button {  
+            margin-right: 8px;  
+            font-size: 1.2em;  
+            opacity: 1;  
+            transition: opacity 0.2s;  
+        }  
+        .feedback-buttons button:disabled {  
+            opacity: 0.5;  
+        }  
+        .input-group {  
+            width: 100%;  
+        }  
+        .form-control {  
+            border-radius: 20px;  
+        }  
+        .btn-primary {  
+            border-radius: 20px;  
+        }  
+    </style>  
+</head>  
+<body>  
+    <div class="chat-container">  
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">  
+        <h2>Databricks EHH Chat</h2>  
+        <div id="chat-box" class="chat-box"></div>  
+        <div class="input-group">  
+            <input type="text" id="user-input" class="form-control" placeholder="Type your message..." autocomplete="off">  
+            <div class="input-group-append">  
+                <button class="btn btn-primary" onclick="sendMessage()">Send</button>  
+            </div>  
+        </div>  
+    </div>  
+  
+    <script>  
+        const chatBox = document.getElementById('chat-box');  
+        const userInput = document.getElementById('user-input');  
+        let conversation = [];  
+  
+        function addMessage(sender, text) {  
+            const messageDiv = document.createElement('div');  
+            messageDiv.classList.add('message', sender);  
+            const bubbleDiv = document.createElement('div');  
+            bubbleDiv.classList.add('bubble');  
+            bubbleDiv.innerText = text;  
+            messageDiv.appendChild(bubbleDiv);  
+  
+            // If it's a bot message, add feedback prompt and buttons  
+            if (sender === 'bot') {  
+                const comment = document.createElement('div');  
+                comment.style.fontSize = '0.96em';  
+                comment.style.margin = '7px 0 2px 0';  
+                comment.style.fontWeight = '500';  
+                comment.innerText = "Please, rate this response to help us improve the App!";  
+  
+                const feedbackDiv = document.createElement('div');  
+                feedbackDiv.className = 'feedback-buttons';  
+  
+                const upBtn = document.createElement('button');  
+                upBtn.innerHTML = '👍';  
+                upBtn.className = 'btn btn-success btn-sm';  
+                upBtn.onclick = function() { sendFeedback(text, 'up', upBtn, downBtn); };  
+  
+                const downBtn = document.createElement('button');  
+                downBtn.innerHTML = '👎';  
+                downBtn.className = 'btn btn-danger btn-sm';  
+                downBtn.onclick = function() { sendFeedback(text, 'down', upBtn, downBtn); };  
+  
+                feedbackDiv.appendChild(upBtn);  
+                feedbackDiv.appendChild(downBtn);  
+  
+                messageDiv.appendChild(comment);  
+                messageDiv.appendChild(feedbackDiv);  
+            }  
+  
+            chatBox.appendChild(messageDiv);  
+            chatBox.scrollTop = chatBox.scrollHeight;  
+        }  
+  
+        // function sendFeedback(botMessage, feedback, upBtn, downBtn) {  
+        //    fetch('/feedback', {  
+        //        method: 'POST',  
+        //        headers: {'Content-Type': 'application/json'},  
+        //        body: JSON.stringify({ message: botMessage, feedback: feedback })  
+        //    })  
+        //    .then(res => res.json())  
+        //    .then(data => {  
+        //        upBtn.disabled = true;  
+        //        downBtn.disabled = true;  
+         //   });  
+        //}  
+  
+        function sendMessage() {  
+            const text = userInput.value.trim();  
+            if (!text) return;  
+            addMessage('user', text);  
+            userInput.value = '';  
+            conversation.push({role: 'user', content: text});  
+  
+            fetch('/chat', {  
+                method: 'POST',  
+                headers: {'Content-Type': 'application/json'},  
+                body: JSON.stringify({ message: text })  
+            })  
+            .then(res => res.json())  
+            .then(data => {  
+                if (data.answer) {  
+                    addMessage('bot', data.answer);  
+                    conversation.push({role: 'bot', content: data.answer});  
+                } else {  
+                    addMessage('bot', "Sorry, there was an error.");  
+                }  
+            })  
+            .catch(() => {  
+                addMessage('bot', "Sorry, there was an error connecting to the server.");  
+            });  
+        }  
+  
+        userInput.addEventListener('keypress', function(e) {  
+            if (e.key === 'Enter') sendMessage();  
+        });  
+    </script>  
+</body>  
+</html>

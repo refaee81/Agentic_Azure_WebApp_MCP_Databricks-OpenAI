@@ -1,0 +1,35 @@
+# -------------------------------------------------------------------------------------------------------
+# Terraform Init
+# -------------------------------------------------------------------------------------------------------
+# Run Terraform Init on the TF_CONFIG_DIRECTORY directory.
+# To setup the environment and backend, providers are downloaded in this task.
+#
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - task: Bash@3
+    condition: in(variables['env_name'], 'prod', 'mdlg', 'stg', 'dev') # Run if Environment is...
+    inputs:
+      filePath: '$(script_path)/$(terraform_version)_terraform-init.sh'
+      arguments: '$(Build.SourcesDirectory) $(env_path) $(env_name)'
+      failOnStderr: true
+    env:
+      ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+      ARM_OIDC_TOKEN: $(AZURE_OIDC_TOKEN)
+      ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      ARM_TENANT_ID: $(AZURE_TENANT_ID) 
+      ARM_USE_OIDC: $(AZURE_USE_OIDC)
+      # ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+    displayName: 'Terraform Init'
+
+  # - task: Bash@3 # old secret method to authenticate
+  #   condition: in(variables['env_name'], 'prd') # Run if Environment is...
+  #   inputs:
+  #     filePath: '$(script_path)/$(terraform_version)_terraform-init.sh'
+  #     arguments: '$(Build.SourcesDirectory) $(env_path) $(env_name)'
+  #     failOnStderr: true
+  #   env:
+  #     ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+  #     ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+  #     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+  #     ARM_TENANT_ID: $(AZURE_TENANT_ID)
+  #   displayName: 'Terraform Init [prd]'  

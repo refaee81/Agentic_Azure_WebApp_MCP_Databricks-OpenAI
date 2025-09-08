@@ -1,0 +1,18 @@
+# -------------------------------------------------------------------------------------------------------
+# Terraform State Show
+# -------------------------------------------------------------------------------------------------------
+# Run Terraform State Show on the TF_CONFIG_DIRECTORY directory.
+#
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - task: Bash@3
+    inputs:
+      filePath: "$(script_path)/$(terraform_version)_terraform-state-show.sh"      
+      arguments: "$(Build.SourcesDirectory) $(env_path) $(env_name) $(tfstate_showtype) $(tfstate_showaddress)"
+      failOnStderr: true
+    env:
+      ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+      ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+      ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      ARM_TENANT_ID: $(AZURE_TENANT_ID)
+    displayName: "Terraform State Show"

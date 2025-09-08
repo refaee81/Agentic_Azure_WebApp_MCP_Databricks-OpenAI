@@ -1,0 +1,34 @@
+# -------------------------------------------------------------------------------------------------------
+# Terraform Validate
+# -------------------------------------------------------------------------------------------------------
+# Run Terraform Validate on the TF_CONFIG_DIRECTORY directory.
+#
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - task: Bash@3
+    condition: in(variables['env_name'], 'prod','mdlg', 'stg', 'dev')
+    inputs:
+      filePath: "$(script_path)/$(terraform_version)_terraform-validate.sh"
+      arguments: "$(Build.SourcesDirectory) $(env_path) $(env_name)"
+      failOnStderr: true
+    env:
+      ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+      ARM_OIDC_TOKEN: $(AZURE_OIDC_TOKEN)
+      ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      ARM_TENANT_ID: $(AZURE_TENANT_ID) 
+      ARM_USE_OIDC: $(AZURE_USE_OIDC)
+      # ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+    displayName: "Terraform Validate"
+
+  # - task: Bash@3 # old secret method to authenticate
+  #   condition: in(variables['env_name'], 'prd') 
+  #   inputs:
+  #     filePath: "$(script_path)/$(terraform_version)_terraform-validate.sh"
+  #     arguments: "$(Build.SourcesDirectory) $(env_path) $(env_name)"
+  #     failOnStderr: true
+  #   env:
+  #     ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+  #     ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+  #     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+  #     ARM_TENANT_ID: $(AZURE_TENANT_ID)
+  #   displayName: 'Terraform Validate [prd]'

@@ -1,0 +1,183 @@
+
+name: 0.1.$(Rev:r)
+
+#----------------------------------------------------------------------------------------------------------
+# Jun 3rd 2025 
+# User Story: # 789507
+# Azure DevOps does not currently support deleting build artifacts directly 
+#  within a YAML pipeline using a built-in task.
+# parameters:
+#   - name: deleteArtifact
+#     displayName: "Clean-Up the Artifact from the AzDo pipeline"
+#     type: boolean
+#     default: true
+#     values:
+#       - false
+#       - true
+#----------------------------------------------------------------------------------------------------------
+
+variables:
+  #----------------------------------------------------------------------------------------------------------
+  # these variables are inline configured in the Pipeline in ADO:
+  #  - env_name
+  #  - env_sub
+  #  - terraform_download_sha
+  #  - terraform_version
+  #  - agent_pool
+  #  - tf_concise_plan
+  #----------------------------------------------------------------------------------------------------------
+  # they are also set in a variable group -> vg-dap-terraform-<env>
+  #   however "- groups:" is not dynamic, it will not support an inline variable.
+  #   for example: - groups: vg-dap-terraform-$(env_name) will not resolve.
+  #   until Microsoft resolve this we cannot use variable groups to set these variables:
+  #   - ${{ if In(variables['env_name'], 'dev', 'qac', 'ppr', 'prd') }}: # <- dynamic group doesn't work
+  #     - group: vg-dap-terraform-${{variables.env_name}}
+  #----------------------------------------------------------------------------------------------------------
+  - name: tf_in_automation # Controlling Terraform output in automation
+    value: true
+  # - name: env_sub2 # <- dynamic variable, doesn't work
+  #   ${{ if In(variables['env_name'], 'dev', 'qac') }}:
+  #     value: 'dap-development'
+  #   ${{ if In(variables['env_name'], 'ppr', 'prd') }}:
+  #     value: 'dap-production'
+  - name: env_path
+    value: ./data-platform-ai/subscription/$(env_sub)/$(env_name)
+  - name: script_path
+    value: ./data-platform-ai/pipelines/scripts
+  - name: agent_name
+    value: "$(Agent.Name)"
+
+trigger:
+  batch: true
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - data-platform-ai/subscription/$(env_sub)/$(env_name)/*
+    exclude:
+      - "*.exe"
+      - "*.yaml"
+      - "*.yml"
+      - "*.sh"
+      - "*.md"
+
+stages:
+  - stage: TerraformValidateandPlan
+    jobs:
+      - job: Build
+        pool:
+          name: $(agent_pool)
+        workspace:
+          clean: resources # Delete Build.SourcesDirectory before running a new job => https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
+
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - template: "../templates/terraform-list-runtime-variables.yml" # Output the variable for this execution
+          - template: "../templates/terraform-download.yml" # Download terraform executable based on [terraform_version] variable
+          - template: "../templates/terraform-azure-login.yml" # Login into Azure using the Service Connection defined in the YAML task
+          - template: "../templates/terraform-init.yml" # Run a Terraform Init 
+          - template: "../templates/terraform-validate.yml" # Run a Terraform Validate 
+          - template: "../templates/terraform-plan.yml" # Run Terraform Plan .
+          - template: "../templates/terraform-copy-publish-artifacts.yml" # Copy files and Publish artifacts to be consumed in Terraform Apply Stage
+          - template: "../templates/terraform-cleanup-folders.yml" # Clean-Up the folders from the stage    
+          #----------------------------------------------------------------------------------------------------------
+          # Jun 3rd 2025 
+          # User Story: # 789507
+          # Azure DevOps does not currently support deleting build artifacts directly 
+          #  within a YAML pipeline using a built-in task.
+          # Set the value of the parameters in to variables
+          # - script: |
+          #     echo "Parameter [deleteArtifact] value: ${{ parameters.deleteArtifact }}"
+          #     echo "##vso[task.setvariable variable=deleteArtifactOutput;isOutput=true]${{ parameters.deleteArtifact }}"
+          #   name: setVariableStep
+          #   displayName: "Set Output Variable from Parameter"
+          #----------------------------------------------------------------------------------------------------------
+
+  - stage: TerraformApply
+    dependsOn:
+      - TerraformValidateandPlan
+    condition: succeeded('TerraformValidateandPlan')
+    variables:
+      vDeleteArtifact: $[stageDependencies.TerraformValidateandPlan.Build.outputs['setVariableStep.deleteArtifactOutput']]
+    jobs:
+      - deployment: Apply
+        displayName: "Release"
+        pool:
+          name: $(agent_pool)
+          # demands: $(agent_anme)
+        workspace:
+          clean: resources # Delete Build.SourcesDirectory before running a new job => https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
+        environment: "dap-ai-terraform-apply-$(env_name)" # Approvals and Checks are defined in the [ Azure DevOps > Pipelines > Environment]
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  fetchDepth: 1
+
+                - template: "../templates/terraform-list-runtime-variables.yml" # Output the variable for this execution
+                - template: "../templates/terraform-copy-artifacts.yml" # Download and copy artifacts from previous Terraform Plan Stage
+                - template: "../templates/terraform-azure-login.yml" # Login into Azure using the Service Connection defined in the YAML task
+                - template: "../templates/terraform-set-file-permissions.yml" # Setting required permissions to artifacts as they are lost between stages
+                - template: "../templates/terraform-init.yml" # Run a Terraform Init 
+                - template: "../templates/terraform-apply.yml" # Run Terraform Apply using the PLAN generated TFPLAN_NAME in the previous YAML stage
+                - template: "../templates/terraform-cleanup-folders.yml" # Clean-Up the folders from the stage
+
+  - stage: DeployApp
+    # dependsOn:
+    #   - TerraformValidateandPlan
+    # condition: succeeded('TerraformValidateandPlan')
+    # variables:
+    #   vDeleteArtifact: $[stageDependencies.TerraformValidateandPlan.Build.outputs['setVariableStep.deleteArtifactOutput']]
+    jobs:
+      - job: SetupPython
+        displayName: "Set Python Version"
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          # - checkout: self
+          #   persistCredentials: true
+          - checkout: self      # This checks out your infra/terraform repo  
+          # - checkout: webapp    # This checks out the app code repo  
+
+          - task: UsePythonVersion@0  
+            displayName: 'Use Python 3.11'  
+            inputs:  
+              versionSpec: '3.11'  
+          - script: |
+              echo "List root:"
+              ls -l $(Build.SourcesDirectory)
+              echo "Listing files in $(Build.SourcesDirectory)/webapp" 
+              ls -l $(Build.SourcesDirectory)/data-platform-ai
+              echo "Listing files in $(Build.SourcesDirectory)/data-platform-ai/webapp" 
+              ls -l $(Build.SourcesDirectory)/data-platform-ai/webapp   
+            displayName: 'List app repo files'  
+          - script: |  
+              python -m pip install --upgrade pip
+              pip install --target="./.python_packages/lib/site-packages" -r $(Build.SourcesDirectory)/data-platform-ai/webapp/requirements.txt  
+              # pip install -r ./webapp/requirements.txt 
+              # pip install --target="./.python_packages/lib/site-packages" -r $(Build.SourcesDirectory)/dp-dsip-dap-ai-dpe/webapp/requirements.txt
+            displayName: 'Install web app dependencies and web app files'  
+          - task: ArchiveFiles@2  
+            displayName: 'Archive webapp for deployment'  
+            inputs:  
+              rootFolderOrFile: '$(Build.SourcesDirectory)/data-platform-ai/webapp'  
+              includeRootFolder: false  
+              archiveType: 'zip'  
+              archiveFile: '$(Build.ArtifactStagingDirectory)/webapp.zip'  
+              replaceExistingArchive: true  
+          - task: AzureWebApp@1  
+            displayName: 'Deploy web app to Azure'  
+            inputs:  
+              azureSubscription: 'sc-dap-ai-terraform-dev'  
+              appType: 'webAppLinux'  
+              appName: 'webapp-dev-dap-cc-01' # Output this from Terraform  
+              package: '$(Build.ArtifactStagingDirectory)/webapp.zip'  
+          #----------------------------------------------------------------------------------------------------------  
+          # END DEPLOY WEB APP SECTION  
+          #----------------------------------------------------------------------------------------------------------  
+
+

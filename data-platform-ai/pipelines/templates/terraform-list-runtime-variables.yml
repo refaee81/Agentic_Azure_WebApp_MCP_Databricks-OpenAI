@@ -1,0 +1,40 @@
+# -------------------------------------------------------------------------------------------------------
+# List Variables
+# -------------------------------------------------------------------------------------------------------
+# Output the variable for this execution
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - script: |
+      echo "Agent"
+      echo "  Pool:                $(agent_pool)"
+      echo "  Name:                $(Agent.Name)"   
+      echo "Pipeline"
+      echo "  Folder:              $(Build.DefinitionFolderPath)"
+      echo "  Scripts Folder       $(script_path)"  
+      echo "Repository"
+      echo "  URI:                 $(Build.Repository.Uri)"
+      echo "  Name:                $(Build.Repository.Name)"   
+      #echo "  ID:                  $(Build.Repository.ID)"
+      #echo "  Branch:              $(Build.SourceBranchName)"  
+      echo "  Branch:              $(System.PullRequest.SourceBranch)"
+      echo "  PR number:           $(System.PullRequest.PullRequestId)"
+      echo "  Reason:              $(Build.Reason)"  
+      echo "  Requested For:       $(Build.RequestedFor)"
+      echo "  Requested For Email: $(Build.RequestedForEmail)"
+      echo "Subscription"
+      echo "  Name:                $(env_sub)"
+      echo "Terraform"
+      echo "  Environment:         $(env_name)"
+      echo "  Configuration:       $(env_path)"     
+      echo "  Version:             $(terraform_version)"
+      echo "  SHA256:              $(terraform_download_sha)"
+      echo "  Automation:          $(tf_in_automation)"
+    displayName: "List Runtime Variables"
+  # - script: |
+  #     echo "Listing all predefined variables starting with 'Build.':"
+  #     printenv | grep '^BUILD_' | sort
+  #     echo "----------------------------------------------------------------------------------------------------------"
+  #     echo "Listing all predefined variables starting with 'System.':"
+  #     printenv | grep '^SYSTEM_' | sort
+  #   name: outputVariables
+  #   displayName: "Show Build/System Variables"

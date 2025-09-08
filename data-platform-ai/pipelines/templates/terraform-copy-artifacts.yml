@@ -1,0 +1,15 @@
+# -------------------------------------------------------------------------------------------------------
+# Copy artifacts from previous Terraform Plan Stage
+# -------------------------------------------------------------------------------------------------------
+# Copy Terraform File to ENV folder: $(env_path)
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - task: CopyFiles@2
+    inputs:
+      sourceFolder: "$(Agent.BuildDirectory)/tfplan"
+      contents: |
+        ai_$(env_name)_$(Build.BuildNumber).tfplan     
+        terraform
+      targetFolder: $(env_path)
+      #overWrite: true # Setting to true causes the permissions to be lost on the files.
+    displayName: "Copy Terraform Files"

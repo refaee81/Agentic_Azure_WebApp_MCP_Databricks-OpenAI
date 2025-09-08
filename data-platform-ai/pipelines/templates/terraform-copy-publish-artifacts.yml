@@ -1,0 +1,26 @@
+# -------------------------------------------------------------------------------------------------------
+# Copy files and Publish artifacts to be consumed in Terraform Apply Stage
+# -------------------------------------------------------------------------------------------------------
+# Copy Terraform files from the env_path to Staging: $(Build.ArtifactStagingDirectory)
+# Publish Artifacts to a container [tfplan] for the next Stage
+#
+# Ref: https://learn.hashicorp.com/tutorials/terraform/automate-terraform#plan-and-apply-on-different-machines
+#
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - task: CopyFiles@2
+    inputs:
+      sourceFolder: $(env_path)
+      contents: |
+        ai_$(env_name)_$(Build.BuildNumber).tfplan     
+        terraform
+      targetFolder: $(Build.ArtifactStagingDirectory)
+      #overWrite: false # Optional
+    displayName: "Copy Terraform Files"
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      PathtoPublish: "$(Build.ArtifactStagingDirectory)"
+      ArtifactName: "tfplan"
+      publishLocation: "Container"
+    displayName: "Publish Artifact"

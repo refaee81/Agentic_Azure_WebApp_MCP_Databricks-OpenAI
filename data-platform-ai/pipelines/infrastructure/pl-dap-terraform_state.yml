@@ -1,0 +1,115 @@
+
+name: 0.1.$(Rev:r)
+
+parameters:
+  - name: env
+    displayName: "Environment"
+    type: string
+    default: mdlg
+    values:
+      - mdlg
+      - prod
+      - stg
+  - name: tfStateList
+    displayName: "Terraform state list all OR input specific resource type"
+    type: string
+    default: all
+  - name: tfStateshowType
+    displayName: "Select terraform resource type for state show"
+    type: string
+    default: azurerm_resource_group
+    values: 
+      - azurerm_monitor_diagnostic_setting
+      - azurerm_resource_group
+      - azurerm_storage_account
+      - azurerm_subnet
+      - azurerm_subnet_network_security_group_association
+      - azurerm_subnet_route_table_association
+      - azurerm_virtual_network
+
+  - name: tfStateShowAddress
+    displayName: "Input resource address for state show"
+    type: string
+    default: monitor-resource-group
+      
+  
+  
+
+variables:
+  #----------------------------------------------------------------------------------------------------------
+  # these variables are inline configured in the Pipeline in ADO:
+  #  - terraform_download_sha
+  #  - terraform_version
+  #  - agent_pool
+  #----------------------------------------------------------------------------------------------------------
+  # these variables are configured as runtime Pipeline Parameters:
+  #  - env_name
+  #  - env_sub
+  #  - all/resource_type [appends to the end of command: terraform state list] 
+  #  - resource_type [appends to the end of command: terraform state show <resource_type.resource_address>] 
+  #  - resource_address [appends to the end of command: terraform state show <resource_type.resource_address>] 
+  #----------------------------------------------------------------------------------------------------------
+  # they are also set in a variable group -> vg-dap-terraform-<env>
+  #   however "- groups:" is not dynamic, it will not support an inline variable.
+  #   for example: - groups: vg-dap-terraform-$(env_name) will not resolve.
+  #   until Microsoft resolve this we cannot use variable groups to set these variables:
+  #   - ${{ if In(variables['env_name'], 'dev', 'qac', 'ppr', 'prd') }}: # <- dynamic group doesn't work
+  #     - group: vg-dap-terraform-${{variables.env_name}}
+  #----------------------------------------------------------------------------------------------------------
+  - name: tf_in_automation # Controlling Terraform output in automation
+    value: true
+  - name: env_name
+    value: '${{ parameters.env }}'
+  - name: env_sub    
+    value: prod-legacy-dap-01
+  - name: env_path
+    value: ./data-platform-ai/subscription/$(env_sub)/$(env_name)
+  - name: script_path
+    value: ./data-platform-ai/pipelines/scripts
+  - name: agent_name 
+    value: '$(Agent.Name)'
+  - name: tfstate_list 
+    value: '${{ parameters.tfStateList }}'
+  - name: tfstate_showtype 
+    value: '${{ parameters.tfStateshowType }}'
+  - name: tfstate_showaddress 
+    value: '${{ parameters.tfStateShowAddress }}' 
+     
+
+trigger:
+  batch: true
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - data-platform-ai/subscription/$(env_sub)/$(env_name)/*
+    exclude:
+      - "lock.json"
+      - "*.exe"
+      - "*.yaml"
+      - "*.yml"
+      - "*.sh"
+      - "*.md"
+      - ".gitignore"
+
+stages:
+  - stage: TerraformStateListandShow
+    jobs:
+      - job: Build
+        workspace:
+          clean: resources # Delete Build.SourcesDirectory before running a new job => https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
+        pool: 
+          name: $(agent_pool)
+
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - template: "../templates/terraform-list-runtime-variables.yml" # Output the variable for this execution
+          - template: "../templates/terraform-download.yml" # Download terraform executable based on [terraform_version] variable
+          - template: "../templates/terraform-azure-login.yml" # Login into Azure using the Service Connection defined in the YAML task
+          - template: "../templates/terraform-init.yml" # Run a Terraform Init on the TF_CONFIG_DIRECTORY directory          
+          - template: "../templates/terraform-state-list.yml" # Run Terraform State List on the TF_CONFIG_DIRECTORY directory
+          - template: "../templates/terraform-state-show.yml" # Run Terraform State Show on the TF_CONFIG_DIRECTORY directory
+          - template: "../templates/terraform-cleanup-folders.yml" # Clean-Up the folders from the stage

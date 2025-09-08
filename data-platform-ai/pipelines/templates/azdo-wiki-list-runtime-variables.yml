@@ -1,0 +1,19 @@
+# -------------------------------------------------------------------------------------------------------
+# List Variables
+# -------------------------------------------------------------------------------------------------------
+# Output the variable for this execution
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - script: |
+      echo "Agent"
+      echo "  Pool:                $(agent_pool)"
+      echo "  Name:                $(Agent.Name)"   
+      echo "Pipeline"
+      echo "  Folder:              $(Build.DefinitionFolderPath)"
+      echo "Repository"
+      echo "  URI:                 $(Build.Repository.Uri)"
+      echo "  Name:                $(Build.Repository.Name)"   
+      echo "  Reason:              $(Build.Reason)"  
+      echo "  Requested For:       $(Build.RequestedFor)"
+      echo "  Requested For Email: $(Build.RequestedForEmail)"
+    displayName: "List predefined variables"

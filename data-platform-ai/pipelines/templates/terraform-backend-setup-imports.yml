@@ -1,0 +1,20 @@
+# -------------------------------------------------------------------------------------------------------
+# Terraform Import
+# -------------------------------------------------------------------------------------------------------
+# Run Terraform Import on a specific file for TF backend setup, add 3 resources.
+# To setup the environment and backend, providers are downloaded in this task.
+#
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - task: Bash@3
+    inputs:
+      filePath: '$(script_path)/$(terraform_version)_terraform-backend-setup.imports.sh'
+      arguments: '$(Build.SourcesDirectory) $(env_path) $(env_name)'
+      failOnStderr: true
+    env:
+      ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+      ARM_OIDC_TOKEN: $(AZURE_OIDC_TOKEN)
+      ARM_USE_OIDC: $(AZURE_USE_OIDC)
+      ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      ARM_TENANT_ID: $(AZURE_TENANT_ID)
+    displayName: 'Terraform Import'

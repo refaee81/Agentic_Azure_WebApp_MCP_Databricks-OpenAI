@@ -1,0 +1,12 @@
+# -------------------------------------------------------------------------------------------------------
+# Terraform Download Step
+# -------------------------------------------------------------------------------------------------------
+# Download the Terraform version required for the pipeline.
+# [terraform_version] is passed a pipeline variable.
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - task: Bash@3
+    inputs:
+      filePath: "$(script_path)/$(terraform_version)_terraform-download.sh"
+      arguments: "$(Build.SourcesDirectory) $(env_path) "
+    displayName: "Terraform Download"

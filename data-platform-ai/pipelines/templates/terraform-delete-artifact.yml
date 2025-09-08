@@ -1,0 +1,17 @@
+# -------------------------------------------------------------------------------------------------------
+# Delete the Terraform Plan artifact from the ArtifactStagingDirectory 
+# -------------------------------------------------------------------------------------------------------
+# Jun 3rd 2025 
+# User Story: # 789507
+# Azure DevOps does not currently support deleting build artifacts directly 
+#  within a YAML pipeline using a built-in task.
+# -------------------------------------------------------------------------------------------------------
+steps:
+  - task: DeleteFiles@1
+    # Checks that the environment variable is "dev", and the "vDeleteArtifact" variable is set to true.
+    condition: and(eq(variables['env_name'], 'dev'), eq(variables['vDeleteArtifact'], 'True'))
+    displayName: 'Delete Artifact (TF Plan)'
+    inputs:
+      sourceFolderourceFolder: '$(Build.ArtifactStagingDirectory)'
+      contents: '**/*.tfplan'
+      removeSourceFolder: false

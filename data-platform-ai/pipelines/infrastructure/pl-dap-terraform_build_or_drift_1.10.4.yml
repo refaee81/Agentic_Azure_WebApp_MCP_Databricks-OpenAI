@@ -1,0 +1,112 @@
+
+#----------------------------------------------------------------------------------------------------------
+name: 0.1.$(Rev:r)
+
+parameters:
+- name: beginBanner
+  displayName: "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  type: object
+  default:
+    When selected, this will run the DRIFT pipeline which only normally runs in a schedule.
+
+- name: runPlan
+  displayName: " "
+  type: string
+  default: "🛠️ Plan - Generate a Terraform Plan"
+  values:
+    - 🛠️ Plan - Generate a Terraform Plan
+
+- name: runDrift
+  displayName: |
+     ⚠️ Drift - Check Terraform State with Azure Resources
+  type: boolean
+  default: false
+
+# - name: runApply
+#   displayName: |
+#     🚀 Apply - Deploy the Terraform Plan 
+#   type: boolean
+#   default: false
+
+variables:
+  #----------------------------------------------------------------------------------------------------------
+  # these variables are inline configured in the Pipeline in AzDO:
+  #  - env_name
+  #  - env_sub
+  #  - terraform_download_sha
+  #  - terraform_version
+  #  - agent_pool
+  #  - tf_concise_plan
+  #----------------------------------------------------------------------------------------------------------
+  # they are also set in a variable group -> vg-dap-terraform-<env>
+  #   however "- groups:" is not dynamic, it will not support an inline variable.
+  #   for example: - groups: vg-dap-terraform-$(env_name) will not resolve.
+  #   until Microsoft resolve this we cannot use variable groups to set these variables:
+  #   - ${{ if In(variables['env_name'], 'dev', 'qac', 'ppr', 'prd') }}: # <- dynamic group doesn't work
+  #     - group: vg-dap-terraform-${{variables.env_name}}
+  #----------------------------------------------------------------------------------------------------------
+  - name: tf_in_automation # Controlling Terraform output in automation
+    value: true
+  - name: env_path
+    value: ./data-platform-ai/subscription/$(env_sub)/$(env_name)
+  - name: script_path
+    value: ./data-platform-ai/pipelines/scripts
+  - name: agent_name 
+    value: '$(Agent.Name)'
+
+trigger:
+  batch: true
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - data-platform-ai/subscription/$(env_sub)/$(env_name)/*
+    exclude:
+      - "lock.json"
+      - "*.exe"
+      - "*.yaml"
+      - "*.yml"
+      - "*.sh"
+      - "*.md"
+      - ".gitignore"
+
+# schedules:
+#   - cron: "00 11 * * 1-5"
+#     displayName: "Daily Weekday Drift Schedule 7am EDT or 6am UTC"
+#     branches:
+#       include:
+#         - master
+#     always: true
+
+stages:
+  - stage: TerraformValidateandPlan
+    jobs:
+      - job: Build
+        workspace:
+          clean: resources # Delete Build.SourcesDirectory before running a new job => https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
+        pool: 
+          name: $(agent_pool)
+
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - template: "../templates/terraform-list-runtime-variables.yml" # Output the variable for this execution
+          - template: "../templates/terraform-download.yml" # Download terraform executable based on [terraform_version] variable
+          - template: "../templates/terraform-azure-login.yml" # Login into Azure using the Service Connection defined in the YAML task
+          - template: "../templates/terraform-init.yml" # Run a Terraform Init 
+          - template: "../templates/terraform-validate.yml" # Run a Terraform Validate
+          #- script: echo "### runDrift is ${{ parameters.runDrift }}"
+          #----------------------------------------------------------------------------------------------------------
+          # Terraform Build/Plan
+          - template: "../templates/terraform-plan-beta.yml" # Terraform Plan 
+            parameters:
+              runDrift: ${{ parameters.runDrift }}
+          #----------------------------------------------------------------------------------------------------------
+          # Terraform Drift
+          - template: "../templates/terraform-plan-drift-beta.yml" # Terraform Drift
+            parameters:
+              runDrift: ${{ parameters.runDrift }}          
+          #----------------------------------------------------------------------------------------------------------
+          - template: "../templates/terraform-cleanup-folders.yml" # Clean-Up the folders from the stage

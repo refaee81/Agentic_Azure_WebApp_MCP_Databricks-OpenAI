@@ -1,0 +1,45 @@
+# -------------------------------------------------------------------------------------------------------
+# Terraform Plan [DRIFT]
+# -------------------------------------------------------------------------------------------------------
+# Run Terraform Plan on the TF_CONFIG_DIRECTORY directory.
+# If the terraform backend state file and the Azure resources are not in sync this task will fail. 
+# -------------------------------------------------------------------------------------------------------
+parameters:
+  - name: runDrift
+    type: boolean
+ 
+steps:
+#  - ${{ if ne(parameters.runApply, true) }}: # parameter 'runApply' is not 'True'
+  - task: Bash@3
+
+    # -------------------------------------------------------------------------------------------------------
+    # The environment name (env_name) is one of these: dev, qac, ppr, or prd.
+    # And at least one of the following is true:
+    #   The parameter runDrift is set to 'true'
+    #   Or both of these are true:
+    #     The build was triggered by a scheduled run (Build.Reason equals 'Schedule').
+    #     The build was requested by the system account (Build.RequestedFor equals 'Microsoft.VisualStudio.Services.TFS')
+    # -------------------------------------------------------------------------------------------------------
+    
+    condition: and(
+       in(variables['env_name'], 'prod','mdlg', 'stg', 'dev'),
+       or(
+         eq('${{ parameters.runDrift }}', 'True'),
+         and(
+           eq(variables['Build.Reason'], 'Schedule'),
+           eq(variables['Build.RequestedFor'], 'Microsoft.VisualStudio.Services.TFS')
+         )
+       )
+     )
+
+    inputs:
+      filePath: '$(script_path)/$(terraform_version)_terraform-plan-drift.sh'
+      arguments: '$(Build.SourcesDirectory) $(env_path) $(tf_concise_plan) $(env_name)'
+      failOnStderr: true
+    env:
+      ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+      ARM_OIDC_TOKEN: $(AZURE_OIDC_TOKEN)
+      ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      ARM_TENANT_ID: $(AZURE_TENANT_ID) 
+      ARM_USE_OIDC: $(AZURE_USE_OIDC)            
+    displayName: 'Terraform Plan [Drift]'
