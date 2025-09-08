@@ -4,4 +4,5 @@ The modular AI system is designed to efficiently route and answer user queries u
 
 This AI Agent communicates with a developed/customed FAQ Mosaic Model in Databricks to provide tailord knolwedge-based answers as well as genenral conversations that help day-2-day business ops. 
 
-The WebApp is the UI that deployed via Azure WebApp Service Plan and utlizing Flask Library as well as Restful Operations. 
+The WebApp is the UI that deployed via Azure WebApp Service Plan and utlizing Flask Library as well as Restful Operations. It is managed, maintained, and deplopyed as IaC and via Terraform.  
+
